@@ -28,6 +28,12 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+/* List of sleeping processes. Processes are added to this list
+   when they are require to sleep for a time and removed when
+   a time equal or greater than specified time is spent*/
+static struct list sleep_list;
+int64_t min_wakeup_tick = INT64_MAX;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -71,6 +77,9 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+/* Function prototype implemented to help insertion of thread to sleep_list*/
+static bool comp_wakeup_tick(const struct list_elem *cur_thread_elem, const struct list_elem *sleep_thread_elem, void *aux);
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -92,6 +101,8 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  // Initialize the declared sleep list
+  list_init(&sleep_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -312,6 +323,66 @@ thread_yield (void)
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
+}
+
+/* Compare the wakeup_tick of two threads and return true
+   if the wakeup_tick of cur_thread is less */
+static bool
+comp_wakeup_tick(const struct list_elem *cur_thread_elem,
+                  const struct list_elem *sleep_thread_elem,
+                  void *aux)
+{
+    struct thread *cur_thread = list_entry(cur_thread_elem, struct thread, elem);
+    struct thread *sleep_thread = list_entry(sleep_thread_elem, struct thread, elem);
+    if(cur_thread->wakeup_tick < sleep_thread->wakeup_tick){
+        return true;
+    }else{
+        return false;
+    }
+}
+
+/* Put the current thread to the THREAD_BLOCKED state
+   for at least the specified number of ticks */
+void
+thread_sleep(int64_t tick)
+{
+    struct thread *cur = thread_current ();
+    enum intr_level old_level;
+    old_level = intr_disable();
+    if(cur != idle_thread){
+        cur->status = THREAD_SLEEPING;
+        cur->wakeup_tick = tick;
+        list_insert_ordered(&sleep_list, &cur->elem, comp_wakeup_tick, NULL);
+        schedule();
+    }
+    intr_set_level(old_level);
+}
+
+/* Wake up the blocked threads that have wakeup_tick
+   less than the current system tick */
+void
+thread_wakeup(int64_t tick)
+{
+    enum intr_level old_level;
+    old_level = intr_disable();
+    if(!list_empty(&sleep_list)){
+        struct thread *front = list_entry(list_front(&sleep_list), struct thread, elem);
+        int64_t min_tick = front->wakeup_tick;
+        while (min_tick <= tick)
+        {
+            struct thread *thread = list_entry(list_pop_front(&sleep_list), struct thread, elem);
+            list_push_back(&ready_list, &thread->elem);
+            thread->status = THREAD_READY;
+            if(!list_empty(&sleep_list)){
+                struct thread *next_thread = list_entry(list_front(&sleep_list), struct thread, elem);
+                min_tick = next_thread->wakeup_tick;
+            }else{
+                min_tick = INT64_MAX;
+            }
+        }
+        min_wakeup_tick = min_tick;
+    }
+    intr_set_level(old_level);
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
