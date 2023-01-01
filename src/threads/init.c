@@ -70,6 +70,10 @@ static void locate_block_devices (void);
 static void locate_block_device (enum block_type, const char *name);
 #endif
 
+// Implemented functions to create the interactive shell
+static int compare_cmd(char *entered_cmd, char *defined_cmd);
+static char *read_cmd(void);
+
 int pintos_init (void) NO_RETURN;
 
 /* Pintos main entry point. */
@@ -133,13 +137,97 @@ pintos_init (void)
     /* Run actions specified on kernel command line. */
     run_actions (argv);
   } else {
-    // TODO: no command line passed to kernel. Run interactively 
+    // TODO: no command line passed to kernel. Run interactively - Completed
+      printf("Welcome to PintOS\n");
+      char *whoami_cmd = malloc(sizeof(char)*7);
+      whoami_cmd = "whoami";
+      char *shutdown_cmd = malloc(sizeof(char)*8);
+      shutdown_cmd = "shutdown";
+      char *time_cmd = malloc(sizeof(char)*4);
+      time_cmd = "time";
+      char *priority_cmd = malloc(sizeof(char)*8);
+      priority_cmd = "priority";
+      char *thread_cmd = malloc(sizeof(char)*6);
+      thread_cmd = "thread";
+      char *exit_cmd = malloc(sizeof(char)*4);
+      exit_cmd = "exit";
+      char *ram_cmd = malloc(sizeof(char)*3);
+      ram_cmd = "ram";
+      while(true) {
+          printf("CS2043> ");
+          char *cmd = malloc(sizeof(char));
+          cmd = (char *) read_cmd();
+          printf("\n");
+          if (compare_cmd(cmd, whoami_cmd)) {
+              printf("%s\n", "G.G. Vimukthi Pahasara - 200440C");
+          } else if (compare_cmd(cmd, shutdown_cmd)) {
+              shutdown_power_off();
+          } else if (compare_cmd(cmd, time_cmd)) {
+              int temp2 = (int) rtc_get_time();
+              printf("%d seconds\n", temp2);
+          } else if (compare_cmd(cmd, ram_cmd)) {
+              printf("%d kB of RAM\n", init_ram_pages * PGSIZE / 1024);
+          } else if (compare_cmd(cmd, thread_cmd)) {
+              thread_print_stats();
+          } else if (compare_cmd(cmd, priority_cmd)) {
+              int priority = thread_get_priority();
+              printf("%d\n", priority);
+          } else if (compare_cmd(cmd, exit_cmd)) {
+              printf("%s", "Exiting the QEMU Emulater...Bye!\n");
+              break;
+          } else {
+              printf("\'%s\' is not recognized as an internal or external command, operable program or batch file.\n",
+                     cmd);
+          }
+      }
   }
 
   /* Finish up. */
   shutdown ();
   thread_exit ();
 }
+
+/* Helper methods for implementing the interactive shell*/
+static int compare_cmd(char *entered_cmd, char *defined_cmd){
+    int index = 0;
+    while(true){
+        if(defined_cmd[index] == 0x00 && entered_cmd[index] == 0x00){
+            return true;
+        } else if(entered_cmd[index] == defined_cmd[index]){
+            index++;
+        } else{
+            return false;
+        }
+    }
+}
+
+static char *read_cmd(void){
+    char *cmd = (char *) malloc(sizeof(char) * 100);
+    int index = 0;
+    while(true){
+        char *char_input = malloc(sizeof(char));
+        uint8_t temp = input_getc();
+        if(temp == 13){
+            cmd[index] = 0x00;
+            return cmd;
+        }
+        else if(temp == 8){
+            if(index > 0){
+                printf("%s","\b \b");
+                cmd[index - 1] = 0x00;
+                cmd[index] = 0x00;
+                index--;
+            }
+        }
+        else{
+            printf("%c", temp);
+            cmd[index] = temp;
+            index++;
+        }
+    }
+    return cmd;
+}
+
 
 /* Clear the "BSS", a segment that should be initialized to
    zeros.  It isn't actually stored on disk or zeroed by the
