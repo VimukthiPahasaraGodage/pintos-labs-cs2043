@@ -2,4 +2,4 @@ cd /home/vimukthi/UoM/Semester_3/CS2043_Operating_Systems/pintos_labs/src/thread
 make clean
 make
 cd build
-pintos -- -q run alarm-single
+pintos -- -q run priority-change
