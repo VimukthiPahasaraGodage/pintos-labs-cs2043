@@ -14,4 +14,4 @@ download the release version for this branch at https://github.com/jhu-cs318/pin
 
 The team members are,
 - G.G. Vimukthi Pahasara
-- Dinindu Tharinda
+- N.H. Dinindu Tharinda (GitHub Account : Dinindu-20/ https://github.com/Dinindu-20)
